@@ -13,6 +13,7 @@ class Car final : public sf::Transformable,
 		Car()
 		{
 			m_body.setSize({100.f, 40.f});
+			m_body.setFillColor(sf::Color(210,210,198));
 			m_body.setOrigin(0, m_body.getSize().y / 2.f);
 			m_wheels[0].setPosition(100.f,  30.f);
 			m_wheels[1].setPosition(100.f, -30.f);
@@ -38,21 +39,21 @@ class Car final : public sf::Transformable,
 				case Direction::Center:
 					{
 						if(m_turnAngle < 180)
-						{ m_turnAngle += m_lockAngle / 10; }
+						{ m_turnAngle += m_lockAngle / 20; }
 						else if(m_turnAngle > 180)
-						{ m_turnAngle -= m_lockAngle / 10; }
+						{ m_turnAngle -= m_lockAngle / 20; }
 						break;
 					}
 				case Direction::Right:
 					{
 						if(m_turnAngle < 180 + m_lockAngle)
-						{ m_turnAngle += m_lockAngle / 10; }
+						{ m_turnAngle += m_lockAngle / 5; }
 						break;
 					}
 				case Direction::Left:
 					{
 						if(m_turnAngle > 180 - m_lockAngle)
-						{ m_turnAngle -= m_lockAngle / 10; }
+						{ m_turnAngle -= m_lockAngle / 5; }
 						break;
 					}
 			}
@@ -70,32 +71,37 @@ class Car final : public sf::Transformable,
 		}
 		void Accelerate(int direction)
 		{
-			m_speed += direction * m_acceleration;
+			if(m_speed < m_topSpeed)
+			{ m_speed += direction * m_acceleration; }
+		}
+		void Deccelerate (){
+			m_speed-=m_speed/30;
 		}
 		void Move(float dt)
 		{
+			float speed = m_speed * dt;
+			sf::Vector2f buffer;
 			if(m_turnAngle == 180)
-				this->move(m_speed * cos(getRotation() * 3.14 /
-				                         180)*dt, m_speed * sin(getRotation() * 3.14 / 180)
-				           *dt);
+			{
+				buffer = sf::Vector2f(speed * cos(getRotation() * 3.14 / 180), speed * sin(getRotation() * 3.14 / 180));
+				this->move(buffer);
+			}
 			else
 			{
-				float radius = sqrt(pow(((double)
-				                         this->getPosition().x -
-				                         this->calculateCenter().x),
-				                        2.0) + pow((double)this->getPosition().y -
-				                                   this->calculateCenter().y, 2.0));
-				r = sqrt(pow((center.x - position.x),
-				             2.0) + pow((center.y - position.y), 2.0));
-				float a = 3 * M_PI / 2 - atan2((center.x -
-				                                position.x), (center.y - position.y));
-				float x = center.x + cos(a) * r;
-				float y = center.y + sin(a) * r;
-				return sf::Vector2f(x, y);
+				int direction = (m_turnAngle > 180) ? 1 : -1;
+				speed *= direction;
+				sf::Vector2f position = getPosition();
+				sf::Vector2f center = calculateCenter(true);
+				float r = sqrt(pow((center.x - position.x), 2.0) + pow((center.y - position.y), 2.0));
+				float a = 1.5f * M_PI - atan2((center.x - position.x), (center.y - position.y));
+				a += atan(speed / r);
+				buffer =  sf::Vector2f(center.x + cos(a) * r, center.y + sin(a) * r);
+				this->move(buffer - position);
+				setRotation(direction * 90 + atan2(buffer.y - center.y, buffer.x - center.x) * 180 / M_PI);
 			}
+			Deccelerate();
 		}
-		sf::Vector2f calculateCenter(bool absolute =
-		                                 false)
+		sf::Vector2f calculateCenter(bool absolute = false)
 		{
 			if(absolute)
 			{
@@ -125,12 +131,12 @@ class Car final : public sf::Transformable,
 
 
 	private:
-
+		float m_topSpeed = 1;
 		sf::RectangleShape m_body;
 		float m_speed = 0;
 		float m_turnAngle = 180;
-		float m_lockAngle = 50;
-		float m_acceleration = 0.1;
+		float m_lockAngle = 30;
+		float m_acceleration = 0.05;
 		sf::VertexArray m_line;
 		sf::VertexArray m_line2;
 
@@ -164,13 +170,10 @@ class Car final : public sf::Transformable,
 			{ return 1E+10; }
 			return tan(angle * M_PI / 180.0);
 		}
-		float calculateIntAngle(const sf::Vector2f&
-		                        center, const sf::Vector2f& wheel)
+		float calculateIntAngle(const sf::Vector2f& center, const sf::Vector2f& wheel)
 		{
-			return 90 + atan2(wheel.y - center.y,
-			                  wheel.x - center.x) * 180 / M_PI;
+			return 90 + atan2(wheel.y - center.y, wheel.x - center.x) * 180 / M_PI;
 		}
-
 		sf::Vector2f calculateIntersection(float angle1,
 		                                   float angle2, const sf::Vector2f& position1,
 		                                   const sf::Vector2f& position2)
